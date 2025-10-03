@@ -1,0 +1,8 @@
+Hello {{ user.name }}!
+{% if (user.age >= 18) %}
+  Adult {{ 3 + 27 }}
+{% else %}
+  Minor
+{% endif %}
+Escaped: {{ '<b>bold</b>' }}
+Raw: {{{ '<b>bold</b>' }}}
