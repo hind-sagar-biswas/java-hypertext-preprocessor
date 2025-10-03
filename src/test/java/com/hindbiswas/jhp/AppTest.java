@@ -1,4 +1,4 @@
-package com.hindbiswas.java-hypertext-preprocessor;
+package com.hindbiswas.jhp;
 
 import static org.junit.Assert.assertTrue;
 
