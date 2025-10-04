@@ -1,0 +1,5 @@
+{% if (age >= 18) %}
+Adult
+{% else %}
+Minor
+{% endif %}

@@ -1,0 +1,3 @@
+Upper: {{ touppercase(text) }}
+Lower: {{ tolowercase(text) }}
+Length: {{ len(text) }}

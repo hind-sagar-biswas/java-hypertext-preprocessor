@@ -1,20 +1,16 @@
 package com.hindbiswas.jhp;
 
-import static org.junit.Assert.assertTrue;
+import static org.junit.jupiter.api.Assertions.*;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 /**
- * Unit test for simple App.
+ * Basic smoke test for App.
  */
-public class AppTest 
-{
-    /**
-     * Rigorous Test :-)
-     */
+class AppTest {
+    
     @Test
-    public void shouldAnswerWithTrue()
-    {
-        assertTrue( true );
+    void testAppExists() {
+        assertNotNull(App.class);
     }
 }
