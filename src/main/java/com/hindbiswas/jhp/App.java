@@ -28,6 +28,7 @@ public class App {
         user.put("age", 150);
         user.put("gender", "F");
         ctx.put("user", user);
+        ctx.put("title", "Test JHP");
 
         // render
         AstRenderer renderer = new AstRenderer(Path.of("examples")); // optional base dir

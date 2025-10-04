@@ -1,4 +1,7 @@
-Hello {{ user.name }}!
+{% include 'header.jhp' %}
+
+<h2>Hello {{ user.name }}! </h2>
+<p>
 {% if (user.age >= 100) %}
   Damn! You're still kickin, huh?
   You are a really strong 
@@ -13,11 +16,15 @@ Hello {{ user.name }}!
 {% else %}
   Minor
 {% endif %}
-
+</p>
 <ul>
 {% for (i = 0; i < 10; i++) %}
   <li>{{ i + 1 }}. Item no. {{ i }}! 
 {% endfor %}
 </ul>
+<p>
 Escaped: {{ '<b>bold</b>' }}
 Raw: {{{ '<b>bold</b>' }}}
+</p>
+
+{% include 'footer.jhp' %}
