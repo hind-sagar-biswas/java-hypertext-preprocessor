@@ -1,30 +1,30 @@
 {% include 'header.jhp' %}
 
-<h2>Hello {{ user.name }}! </h2>
+<h2>Hello {{ touppercase(user.gender) }} - {{ user.name }}! </h2>
 <p>
-{% if (user.age >= 100) %}
-  Damn! You're still kickin, huh?
-  You are a really strong 
-  {% if (user.gender == "M") %}
-    Man
+  {% if (user.age >= 100) %}
+    Damn! You're still kickin, huh?
+    You are a really strong 
+    {% if (user.gender == "m") %}
+      Man
+    {% else %}
+      Woman
+    {% endif %}
+    if I must say....!
+  {% elseif (user.age >= 10 + 8) %}
+    Adult? {{ 3 + 27  * 7 / (1 + 4) }}
   {% else %}
-    Woman
+    Minor
   {% endif %}
-  if I must say....!
-{% elseif (user.age >= 10 + 8) %}
-  Adult? {{ 3 + 27  * 7 / (1 + 4) }}
-{% else %}
-  Minor
-{% endif %}
 </p>
 <ul>
-{% for (i = 0; i < 10; i++) %}
-  <li>{{ i + 1 }}. Item no. {{ i }}! 
-{% endfor %}
+  {% for (i = 0; i < 10; i++) %}
+    <li>{{ i + 1 }}. Item no. {{ i }}! 
+  {% endfor %}
 </ul>
 <p>
-Escaped: {{ '<b>bold</b>' }}
-Raw: {{{ '<b>bold</b>' }}}
+  Escaped: {{ '<b>bold</b>' }}
+  Raw: {{{ '<b>bold</b>' }}}
 </p>
 
 {% include 'footer.jhp' %}

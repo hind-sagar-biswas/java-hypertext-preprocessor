@@ -5,7 +5,7 @@ import java.lang.reflect.Method;
 import java.nio.file.Path;
 import java.util.*;
 
-import com.hindbiswas.jhp.engine.FunctionLibrary;
+import com.hindbiswas.jhp.engine.FunctionLibraryContext;
 import com.hindbiswas.jhp.engine.IssueType;
 import com.hindbiswas.jhp.engine.PathResolver;
 import com.hindbiswas.jhp.engine.PathToAstParser;
@@ -18,13 +18,13 @@ public class AstRenderer {
     private final Settings settings;
     private final PathToAstParser parser;
     private final PathResolver pathResolver;
-    private final FunctionLibrary functions;
+    private final FunctionLibraryContext functions;
     private final RuntimeIssueResolver issueResolver;
 
     // per-thread include stack for cycle detection
     private final ThreadLocal<Deque<Path>> includeStack = ThreadLocal.withInitial(ArrayDeque::new);
 
-    public AstRenderer(Settings settings, FunctionLibrary functions, RuntimeIssueResolver issueResolver,
+    public AstRenderer(Settings settings, FunctionLibraryContext functions, RuntimeIssueResolver issueResolver,
             PathResolver pathResolver, PathToAstParser parser) {
         this.settings = settings;
         this.functions = functions;
@@ -104,13 +104,15 @@ public class AstRenderer {
             issueResolver.handle(IssueType.MISSING_INCLUDE, e.getMessage(), sb, includeStack);
             return;
         } catch (Exception e) {
-            issueResolver.handle(IssueType.INCLUDE_ERROR, "Something went wrong trying to resolve the include path: " + node.path + ".", sb, includeStack);
+            issueResolver.handle(IssueType.INCLUDE_ERROR,
+                    "Something went wrong trying to resolve the include path: " + node.path + ".", sb, includeStack);
             return;
         }
 
         // Check max depth
         if (stack.size() >= settings.maxIncludeDepth) {
-            issueResolver.handle(IssueType.INCLUDE_MAX_DEPTH, "Max include depth reached: " + settings.maxIncludeDepth, sb, includeStack);
+            issueResolver.handle(IssueType.INCLUDE_MAX_DEPTH, "Max include depth reached: " + settings.maxIncludeDepth,
+                    sb, includeStack);
             return;
         }
 
@@ -138,7 +140,8 @@ public class AstRenderer {
             }
 
         } catch (Exception ex) {
-            issueResolver.handle(IssueType.INCLUDE_ERROR, "Something went wrong trying to parse the include: " + node.path + ".", sb, includeStack);
+            issueResolver.handle(IssueType.INCLUDE_ERROR,
+                    "Something went wrong trying to parse the include: " + node.path + ".", sb, includeStack);
         }
     }
 
@@ -320,12 +323,41 @@ public class AstRenderer {
         }
         if (expr instanceof FunctionCallNode) {
             FunctionCallNode f = (FunctionCallNode) expr;
-            Object callee = evalExpression(f.callee, scopes);
+
+            // Determine function name (prefer raw identifier names)
+            String fnName = null;
+            if (f.callee instanceof IdentifierNode id) {
+                fnName = id.name; // function name literal
+            } else {
+                Object calleeVal = evalExpression(f.callee, scopes);
+                if (calleeVal instanceof String)
+                    fnName = (String) calleeVal;
+            }
+
+            // build args
             List<Object> args = new ArrayList<>();
             for (ExpressionNode e : f.args)
                 args.add(evalExpression(e, scopes));
-            return callFunction(callee, args, scopes);
+
+            if (fnName != null) {
+                try {
+                    return functions.callFunction(fnName, args, scopes);
+                } catch (Exception ex) {
+                    StringBuilder tmp = new StringBuilder();
+                    issueResolver.handle(IssueType.FUNCTION_ERROR,
+                            "Function '" + fnName + "' threw: " + ex.getClass().getSimpleName() + ": "
+                                    + ex.getMessage(),
+                            tmp, includeStack);
+                    return tmp.toString();
+                }
+            } else {
+                StringBuilder tmp = new StringBuilder();
+                issueResolver.handle(IssueType.FUNCTION_CALL_ERROR,
+                        "Invalid function call: " + String.valueOf(f.callee), tmp, includeStack);
+                return tmp.toString();
+            }
         }
+
         if (expr instanceof UnaryOpNode) {
             UnaryOpNode u = (UnaryOpNode) expr;
             Object v = evalExpression(u.expr, scopes);

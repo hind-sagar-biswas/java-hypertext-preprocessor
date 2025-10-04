@@ -7,6 +7,9 @@ import com.hindbiswas.jhp.ast.AstBuilder;
 import com.hindbiswas.jhp.ast.AstPrettyPrinter;
 import com.hindbiswas.jhp.ast.AstRendererOld;
 import com.hindbiswas.jhp.ast.TemplateNode;
+import com.hindbiswas.jhp.engine.FunctionLibrary;
+import com.hindbiswas.jhp.engine.JhpEngine;
+import com.hindbiswas.jhp.engine.Settings;
 
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -16,7 +19,26 @@ import java.util.Map;
 
 public class App {
     public static void main(String[] args) throws Exception {
-        ParseTree tree = generateTree("/home/shinigami/Java/java-hypertext-preprocessor/examples/initial.jhp");
+        String file = "/home/shinigami/Java/java-hypertext-preprocessor/examples/initial.jhp";
+
+        Settings settings = Settings.builder().base("/home/shinigami/Java/java-hypertext-preprocessor/examples/").build();
+        FunctionLibrary lib = new FunctionLibrary();
+        JhpEngine engine = new JhpEngine(settings, lib);
+
+        Map<String, Object> ctx = new HashMap<>();
+        Map<String, Object> user = new HashMap<>();
+        user.put("name", "Alice");
+        user.put("age", 150);
+        user.put("gender", "f");
+        ctx.put("user", user);
+        ctx.put("title", "Test JHP");
+
+        String out = engine.render(file, ctx);
+        System.out.println(out);
+    }
+
+    public static void oldReneder(String file) throws Exception {
+        ParseTree tree = generateTree(file);
         AstBuilder builder = new AstBuilder();
         TemplateNode ast = (TemplateNode) builder.visit(tree);
         AstPrettyPrinter.print(ast);
@@ -34,7 +56,6 @@ public class App {
         AstRendererOld renderer = new AstRendererOld(Path.of("examples")); // optional base dir
         String out = renderer.render(ast, ctx);
         System.out.println(out);
-
     }
 
     public static ParseTree generateTree(String file) throws Exception {

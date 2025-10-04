@@ -9,8 +9,8 @@ public class Settings {
         private int maxIncludeDepth = defaultMaxIncludeDepth;
         private IssueHandleMode issueHandleMode = defaultIssueHandleMode;
 
-        public SettingsBuilder base(Path base) {
-            this.base = base;
+        public SettingsBuilder base(String base) {
+            this.base = Path.of(base);
             return this;
         }
 

@@ -97,9 +97,12 @@ public class JhpEngine {
         public void handle(IssueType type, String message, StringBuilder sb, ThreadLocal<Deque<Path>> includeStack) {
             if (settings.issueHandleMode == IssueHandleMode.COMMENT) {
                 sb.append("<!-- ").append(type).append(": ").append(message).append(" -->\n");
-            } else if (settings.issueHandleMode == IssueHandleMode.THROW) {
+                return;
+            }
+            if (settings.issueHandleMode == IssueHandleMode.THROW) {
                 throw new RuntimeException(type + ": " + message);
-            } else if (settings.issueHandleMode == IssueHandleMode.DEBUG) {
+            }
+            if (settings.issueHandleMode == IssueHandleMode.DEBUG) {
                 // Build debug info
                 String ts = java.time.Instant.now().toString();
                 String thread = Thread.currentThread().getName();
@@ -166,9 +169,8 @@ public class JhpEngine {
                 sb.append("</details>\n");
 
                 sb.append("<!-- ISSUE DEBUG END -->\n");
-            } else if (settings.issueHandleMode == IssueHandleMode.IGNORE) {
-                // intentionally do nothing
-            }
+            } 
+            
         }
 
         // small helper to append a table row (keeps HTML escaped where appropriate)
@@ -205,21 +207,26 @@ public class JhpEngine {
 
     private final AstParser parser = new AstParser();
     private final Settings settings;
-    private final FunctionLibrary functionLibrary;
+    private final FunctionLibraryContext functionLibrary;
     private final RuntimeIssueResolver issueResolver = new IssueResolver();
+    private final IncludePathResolver includePathResolver = new IncludePathResolver();
 
     // AST cache
     private final Map<Path, TemplateNode> astCache = new HashMap<>();
 
-    public JhpEngine(Settings settings, FunctionLibrary functionLibrary) {
+    public JhpEngine(Settings settings, FunctionLibraryContext functionLibrary) {
         this.settings = settings;
         this.functionLibrary = functionLibrary;
     }
 
     public String render(Path templatePath, Map<String, Object> context) throws Exception {
         TemplateNode ast = parser.parse(templatePath);
-        AstRenderer renderer = new AstRenderer(settings, functionLibrary, issueResolver, new IncludePathResolver(),
-                parser);
+        AstRenderer renderer = new AstRenderer(settings, functionLibrary, issueResolver, includePathResolver, parser);
         return renderer.render(ast, context);
+    }
+
+    public String render(String pathTxt, Map<String, Object> context) throws Exception {
+        Path path = includePathResolver.resolve(pathTxt, null);
+        return render(path, context);
     }
 }
