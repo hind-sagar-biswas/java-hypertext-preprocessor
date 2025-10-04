@@ -25,22 +25,11 @@ Add the following dependency to your `pom.xml`:
 <dependency>
     <groupId>com.hindbiswas.jhp</groupId>
     <artifactId>jhp</artifactId>
-    <version>1.0-SNAPSHOT</version>
+    <version>1.0.0</version>
 </dependency>
 ```
 
-### Maven Repository
-
-If you're installing from a local repository or custom Maven repository, ensure the repository is configured in your `pom.xml`:
-
-```xml
-<repositories>
-    <repository>
-        <id>local-repo</id>
-        <url>file://${project.basedir}/local-repo</url>
-    </repository>
-</repositories>
-```
+The artifact is available on Maven Central, so no additional repository configuration is needed.
 
 <a name="building-from-source"></a>
 ## Building from Source

@@ -5,13 +5,55 @@
   xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
   <modelVersion>4.0.0</modelVersion>
 
-  <groupId>com.hindbiswas.jhp</groupId>
+  <groupId>com.github.hind-sagar-biswas</groupId>
   <artifactId>jhp</artifactId>
-  <version>1.0-SNAPSHOT</version>
+  <version>1.0.0</version>
+  <packaging>jar</packaging>
 
   <name>Java Hypertext Preprocessor</name>
-  <!-- FIXME change it to the project's website -->
+  <description>A powerful, flexible template engine for Java applications with intuitive syntax inspired by PHP, Jinja2, and Blade</description>
   <url>https://github.com/hind-sagar-biswas/java-hypertext-preprocessor/</url>
+
+  <licenses>
+    <license>
+      <name>MIT License</name>
+      <url>https://opensource.org/licenses/MIT</url>
+      <distribution>repo</distribution>
+    </license>
+  </licenses>
+
+  <developers>
+    <developer>
+      <id>hind-sagar-biswas</id>
+      <name>Hind Sagar Biswas</name>
+      <email>hindsbhk@gmail.com</email>
+      <url>https://github.com/hind-sagar-biswas</url>
+      <roles>
+        <role>architect</role>
+        <role>developer</role>
+      </roles>
+      <timezone>Asia/Dhaka</timezone>
+    </developer>
+  </developers>
+
+  <scm>
+    <connection>scm:git:git://github.com/hind-sagar-biswas/java-hypertext-preprocessor.git</connection>
+    <developerConnection>scm:git:ssh://github.com:hind-sagar-biswas/java-hypertext-preprocessor.git</developerConnection>
+    <url>https://github.com/hind-sagar-biswas/java-hypertext-preprocessor/tree/main</url>
+  </scm>
+
+  <issueManagement>
+    <system>GitHub Issues</system>
+    <url>https://github.com/hind-sagar-biswas/java-hypertext-preprocessor/issues</url>
+  </issueManagement>
+
+  <distributionManagement>
+    <repository>
+      <id>github</id>
+      <name>GitHub hind-sagar-biswas Apache Maven Packages</name>
+      <url>https://maven.pkg.github.com/hind-sagar-biswas/java-hypertext-preprocessor</url>
+    </repository>
+  </distributionManagement>
 
   <properties>
     <java.version>25</java.version>
@@ -107,6 +149,24 @@
             <mainClass>com.hindbiswas.jhp.App</mainClass>
           </configuration>
         </plugin>
+        <!-- Maven Source Plugin -->
+        <plugin>
+          <groupId>org.apache.maven.plugins</groupId>
+          <artifactId>maven-source-plugin</artifactId>
+          <version>3.3.0</version>
+        </plugin>
+        <!-- Maven Javadoc Plugin -->
+        <plugin>
+          <groupId>org.apache.maven.plugins</groupId>
+          <artifactId>maven-javadoc-plugin</artifactId>
+          <version>3.6.3</version>
+        </plugin>
+        <!-- Maven Deploy Plugin -->
+        <plugin>
+          <groupId>org.apache.maven.plugins</groupId>
+          <artifactId>maven-deploy-plugin</artifactId>
+          <version>3.1.4</version>
+        </plugin>
       </plugins>
     </pluginManagement>
     <plugins>
@@ -144,6 +204,37 @@
               </execution>
           </executions>
         </plugin>
+        <!-- Maven Source Plugin - Attach sources -->
+        <plugin>
+          <groupId>org.apache.maven.plugins</groupId>
+          <artifactId>maven-source-plugin</artifactId>
+          <executions>
+            <execution>
+              <id>attach-sources</id>
+              <goals>
+                <goal>jar-no-fork</goal>
+              </goals>
+            </execution>
+          </executions>
+        </plugin>
+        <!-- Maven Javadoc Plugin - Attach javadocs -->
+        <plugin>
+          <groupId>org.apache.maven.plugins</groupId>
+          <artifactId>maven-javadoc-plugin</artifactId>
+          <executions>
+            <execution>
+              <id>attach-javadocs</id>
+              <goals>
+                <goal>jar</goal>
+              </goals>
+            </execution>
+          </executions>
+          <configuration>
+            <doclint>none</doclint>
+            <source>25</source>
+          </configuration>
+        </plugin>
     </plugins>
   </build>
+
 </project>

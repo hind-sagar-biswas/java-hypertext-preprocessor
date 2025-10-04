@@ -8,6 +8,7 @@ Welcome to the Java Hypertext Preprocessor (JHP) documentation!
 - [Introduction](README.md) - Overview and quick start
 - [Installation](installation.md) - How to install and set up JHP
 - [Getting Started](getting-started.md) - Your first JHP template
+- [Quick Reference](quick-reference.md) - Syntax cheat sheet
 
 ### Core Concepts
 - [Template Syntax](template-syntax.md) - Learn the template language
@@ -20,6 +21,10 @@ Welcome to the Java Hypertext Preprocessor (JHP) documentation!
 - [Advanced Usage](advanced-usage.md) - Performance, threading, and patterns
 - [API Reference](api-reference.md) - Complete API documentation
 - [Examples](examples.md) - Real-world examples
+
+### Project Information
+- [Changelog](../CHANGELOG.md) - Version history
+- [License](../LICENSE) - MIT License
 
 ## Quick Links
 

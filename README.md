@@ -1,8 +1,9 @@
 # Java Hypertext Preprocessor (JHP)
 
+[![Maven Central](https://img.shields.io/maven-central/v/com.hindbiswas.jhp/jhp.svg?label=Maven%20Central)](https://search.maven.org/artifact/com.hindbiswas.jhp/jhp)
 [![Java](https://img.shields.io/badge/Java-25-orange.svg)](https://www.oracle.com/java/)
-[![Maven](https://img.shields.io/badge/Maven-3.6+-blue.svg)](https://maven.apache.org/)
-[![License](https://img.shields.io/badge/License-Open%20Source-green.svg)](LICENSE)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
+[![GitHub release](https://img.shields.io/github/v/release/hind-sagar-biswas/java-hypertext-preprocessor.svg)](https://github.com/hind-sagar-biswas/java-hypertext-preprocessor/releases)
 
 A powerful, flexible template engine for Java applications. Inspired by PHP and modern template engines like Jinja2 and Blade, JHP provides an elegant syntax for embedding dynamic content in your HTML templates.
 
@@ -22,15 +23,17 @@ A powerful, flexible template engine for Java applications. Inspired by PHP and 
 
 ### Installation
 
-Add to your `pom.xml`:
+Add the dependency to your `pom.xml`:
 
 ```xml
 <dependency>
     <groupId>com.hindbiswas.jhp</groupId>
     <artifactId>jhp</artifactId>
-    <version>1.0-SNAPSHOT</version>
+    <version>1.0.0</version>
 </dependency>
 ```
+
+The artifact is available on [Maven Central](https://search.maven.org/artifact/com.hindbiswas.jhp/jhp).
 
 ### Basic Usage
 
@@ -238,13 +241,16 @@ Contributions are welcome! Please feel free to submit pull requests or open issu
 
 ## License
 
-This project is open source. Check the repository for license details.
+This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
 
 ## Links
 
 - **Documentation**: [docs/](docs/)
 - **GitHub**: [java-hypertext-preprocessor](https://github.com/hind-sagar-biswas/java-hypertext-preprocessor/)
+- **Maven Central**: [com.hindbiswas.jhp:jhp](https://search.maven.org/artifact/com.hindbiswas.jhp/jhp)
 - **Issues**: [Issue Tracker](https://github.com/hind-sagar-biswas/java-hypertext-preprocessor/issues)
+- **Publishing Guide**: [PUBLISHING.md](PUBLISHING.md)
+- **Changelog**: [CHANGELOG.md](CHANGELOG.md)
 
 ## Acknowledgments
 
