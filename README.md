@@ -1,9 +1,9 @@
 # Java Hypertext Preprocessor (JHP)
 
-[![Maven Central](https://img.shields.io/maven-central/v/com.hindbiswas.jhp/jhp.svg?label=Maven%20Central)](https://search.maven.org/artifact/com.hindbiswas.jhp/jhp)
+[![GitHub Packages](https://img.shields.io/badge/GitHub%20Packages-1.0.0-blue)](https://github.com/hind-sagar-biswas/java-hypertext-preprocessor/packages)
 [![Java](https://img.shields.io/badge/Java-25-orange.svg)](https://www.oracle.com/java/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
-[![GitHub release](https://img.shields.io/github/v/release/hind-sagar-biswas/java-hypertext-preprocessor.svg)](https://github.com/hind-sagar-biswas/java-hypertext-preprocessor/releases)
+[![GitHub Release](https://img.shields.io/github/v/release/hind-sagar-biswas/java-hypertext-preprocessor?include_prereleases)](https://github.com/hind-sagar-biswas/java-hypertext-preprocessor/releases)
 
 A powerful, flexible template engine for Java applications. Inspired by PHP and modern template engines like Jinja2 and Blade, JHP provides an elegant syntax for embedding dynamic content in your HTML templates.
 
