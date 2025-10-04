@@ -83,14 +83,6 @@ public class PrintableTree {
         String literal = JhpTemplateLexer.VOCABULARY.getLiteralName(ttype);
         String display = JhpTemplateLexer.VOCABULARY.getDisplayName(ttype);
 
-        String ruleName = (symbolic != null) ? symbolic
-                : (literal != null) ? literal
-                        : display;
-
-        // Determine an id character similar to your previous logic:
-        // if it's a generated T__n token then symbolic is null and literal is non-null
-        // (like "'+'"),
-        // but sometimes generated tokens are named T__0 etc — check display if needed.
         char id;
         if (symbolic != null && symbolic.startsWith("T__")) {
             id = 'P'; // original behavior: T__ -> 'P'

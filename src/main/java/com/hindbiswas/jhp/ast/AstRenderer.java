@@ -74,7 +74,7 @@ public class AstRenderer {
             case "WhileNode" -> renderWhile((WhileNode) el, scopes, sb);
             case "BreakNode" -> handleControlFlow("break");
             case "ContinueNode" -> handleControlFlow("continue");
-            default -> issueResolver.handle(IssueType.UNKNOWN_ELEMENT, "Unknown element: " + el, sb);
+            default -> issueResolver.handle(IssueType.UNKNOWN_ELEMENT, "Unknown element: " + el, sb, includeStack);
         }
     }
 
@@ -98,27 +98,25 @@ public class AstRenderer {
             resolved = pathResolver.resolve(node.path, includingFileDir);
 
         } catch (PathNotInBaseDirectoryException e) {
-            issueResolver.handle(IssueType.INCLUDE_NOT_IN_BASE_DIR, e.getMessage(), sb);
+            issueResolver.handle(IssueType.INCLUDE_NOT_IN_BASE_DIR, e.getMessage(), sb, includeStack);
             return;
         } catch (InvalidFileTypeException e) {
-            issueResolver.handle(IssueType.MISSING_INCLUDE, e.getMessage(), sb);
+            issueResolver.handle(IssueType.MISSING_INCLUDE, e.getMessage(), sb, includeStack);
             return;
         } catch (Exception e) {
-            issueResolver.handle(IssueType.INCLUDE_ERROR,
-                    "Something went wrong trying to resolve the include path: " + node.path + ".", sb);
+            issueResolver.handle(IssueType.INCLUDE_ERROR, "Something went wrong trying to resolve the include path: " + node.path + ".", sb, includeStack);
             return;
         }
 
         // Check max depth
         if (stack.size() >= settings.maxIncludeDepth) {
-            issueResolver.handle(IssueType.INCLUDE_MAX_DEPTH,
-                    "Max include depth reached: " + settings.maxIncludeDepth, sb);
+            issueResolver.handle(IssueType.INCLUDE_MAX_DEPTH, "Max include depth reached: " + settings.maxIncludeDepth, sb, includeStack);
             return;
         }
 
         // Cycle detection
         if (stack.contains(resolved)) {
-            issueResolver.handle(IssueType.INCLUDE_CYCLE, "Include cycle detected: " + resolved, sb);
+            issueResolver.handle(IssueType.INCLUDE_CYCLE, "Include cycle detected: " + resolved, sb, includeStack);
             return;
         }
 
@@ -140,8 +138,7 @@ public class AstRenderer {
             }
 
         } catch (Exception ex) {
-            issueResolver.handle(IssueType.INCLUDE_ERROR,
-                    "Something went wrong trying to parse the include: " + node.path + ".", sb);
+            issueResolver.handle(IssueType.INCLUDE_ERROR, "Something went wrong trying to parse the include: " + node.path + ".", sb, includeStack);
         }
     }
 
@@ -431,8 +428,9 @@ public class AstRenderer {
             return functions.callFunction(name, args, scopes);
         }
         // unknown callee type
-        issueResolver.handle(IssueType.FUNCTION_CALL_ERROR, "Invalid function call: " + callee, new StringBuilder());
-        return null;
+        StringBuilder sb = new StringBuilder();
+        issueResolver.handle(IssueType.FUNCTION_CALL_ERROR, "Invalid function call: " + callee, sb, includeStack);
+        return sb.toString();
     }
 
     private String stringify(Object o) {

@@ -88,7 +88,6 @@ public final class AstPrettyPrinter {
 
         // Template elements
         if (node instanceof TemplateNode) {
-            TemplateNode t = (TemplateNode) node;
             return "Template";
         }
         if (node instanceof TextNode) {
