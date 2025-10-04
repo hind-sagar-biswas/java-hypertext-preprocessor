@@ -2,14 +2,6 @@ package com.hindbiswas.jhp.ast;
 
 import java.util.*;
 
-/**
- * Fancy AST pretty-printer that prints a tree with box-drawing branches and
- * useful short labels for each AST node.
- *
- * Usage:
- *   AstPrettyPrinter.print(astRoot);
- *   // or String s = AstPrettyPrinter.toString(astRoot);
- */
 public final class AstPrettyPrinter {
     private static final String TEE = "├── ";
     private static final String ANGLE = "└── ";
@@ -46,10 +38,7 @@ public final class AstPrettyPrinter {
         for (int i = 0; i < children.size(); i++) {
             Object child = children.get(i);
             boolean last = (i == children.size() - 1);
-            String childPrefix = prefix + (isRoot ? "" : (last ? SPACE : VLINE));
-            sb.append(prefix); // prefix already printed on previous line for non-root? keep branching consistent
-            // But to draw connectors we print differently: show connector then child content
-            // buildConnectorLine handles connector printing and recursive build call
+            sb.append(prefix);
             buildConnectorLine(child, sb, prefix, last);
         }
     }
@@ -70,13 +59,8 @@ public final class AstPrettyPrinter {
         for (int i = 0; i < grandChildren.size(); i++) {
             Object gc = grandChildren.get(i);
             boolean lastGc = (i == grandChildren.size() - 1);
-            // recurse with newPrefix (prefix to be used before connector)
-            // but we need to append the newPrefix characters before connectors in deeper levels:
-            // So for each deeper child we prepend newPrefix to the line. We'll achieve that by inserting it into sb
-            // Build subtree into a temp StringBuilder then indent its lines with newPrefix
             StringBuilder sub = new StringBuilder();
             buildConnectorLineRecursive(gc, sub, newPrefix, lastGc);
-            // append sub (already has proper newPrefix prepended on each line)
             sb.append(sub);
         }
     }

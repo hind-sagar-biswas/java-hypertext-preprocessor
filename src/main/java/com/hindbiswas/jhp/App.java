@@ -5,7 +5,7 @@ import org.antlr.v4.runtime.tree.*;
 
 import com.hindbiswas.jhp.ast.AstBuilder;
 import com.hindbiswas.jhp.ast.AstPrettyPrinter;
-import com.hindbiswas.jhp.ast.AstRenderer;
+import com.hindbiswas.jhp.ast.AstRendererOld;
 import com.hindbiswas.jhp.ast.TemplateNode;
 
 import java.nio.file.Files;
@@ -31,7 +31,7 @@ public class App {
         ctx.put("title", "Test JHP");
 
         // render
-        AstRenderer renderer = new AstRenderer(Path.of("examples")); // optional base dir
+        AstRendererOld renderer = new AstRendererOld(Path.of("examples")); // optional base dir
         String out = renderer.render(ast, ctx);
         System.out.println(out);
 

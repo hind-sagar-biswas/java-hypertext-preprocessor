@@ -2,23 +2,36 @@ package com.hindbiswas.jhp.ast;
 
 import java.lang.reflect.Field;
 import java.lang.reflect.Method;
-import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.*;
 
-import org.antlr.v4.runtime.CharStream;
-import org.antlr.v4.runtime.CharStreams;
-import org.antlr.v4.runtime.CommonTokenStream;
-import org.antlr.v4.runtime.DiagnosticErrorListener;
-import org.antlr.v4.runtime.tree.ParseTree;
-
-import com.hindbiswas.jhp.JhpTemplateLexer;
-import com.hindbiswas.jhp.JhpTemplateParser;
+import com.hindbiswas.jhp.engine.FunctionLibrary;
+import com.hindbiswas.jhp.engine.IssueType;
+import com.hindbiswas.jhp.engine.PathResolver;
+import com.hindbiswas.jhp.engine.PathToAstParser;
+import com.hindbiswas.jhp.engine.RuntimeIssueResolver;
+import com.hindbiswas.jhp.engine.Settings;
+import com.hindbiswas.jhp.errors.InvalidFileTypeException;
+import com.hindbiswas.jhp.errors.PathNotInBaseDirectoryException;
 
 public class AstRenderer {
+    private final Settings settings;
+    private final PathToAstParser parser;
+    private final PathResolver pathResolver;
+    private final FunctionLibrary functions;
+    private final RuntimeIssueResolver issueResolver;
+
+    // per-thread include stack for cycle detection
     private final ThreadLocal<Deque<Path>> includeStack = ThreadLocal.withInitial(ArrayDeque::new);
-    private final Map<Path, TemplateNode> astCache = new HashMap<>();
-    private final Path baseDir; // used for includes, nullable
+
+    public AstRenderer(Settings settings, FunctionLibrary functions, RuntimeIssueResolver issueResolver,
+            PathResolver pathResolver, PathToAstParser parser) {
+        this.settings = settings;
+        this.functions = functions;
+        this.issueResolver = issueResolver;
+        this.pathResolver = pathResolver;
+        this.parser = parser;
+    }
 
     // control flow signals for loops
     private static class ControlFlow extends RuntimeException {
@@ -29,82 +42,9 @@ public class AstRenderer {
         }
     }
 
-    public AstRenderer(Path baseDir) {
-        this.baseDir = baseDir;
-    }
-
-    public AstRenderer() {
-        this(null);
-    }
-
-    private TemplateNode parseAndBuild(Path path) throws Exception {
-        Path normalized = path.toAbsolutePath().normalize();
-        synchronized (astCache) {
-            TemplateNode cached = astCache.get(normalized);
-            if (cached != null)
-                return cached;
-        }
-        // read and parse
-        String text = Files.readString(normalized);
-        // create parser (reuse code from your App/ParseTreePrinter):
-        CharStream cs = CharStreams.fromString(text);
-        JhpTemplateLexer lexer = new JhpTemplateLexer(cs);
-        CommonTokenStream tokens = new CommonTokenStream(lexer);
-        JhpTemplateParser parser = new JhpTemplateParser(tokens);
-        parser.removeErrorListeners();
-        parser.addErrorListener(new DiagnosticErrorListener());
-        ParseTree tree = parser.template();
-
-        AstBuilder builder = new AstBuilder();
-        TemplateNode ast = (TemplateNode) builder.visit(tree);
-
-        synchronized (astCache) {
-            astCache.put(normalized, ast);
-        }
-        return ast;
-    }
-
-    // helper: resolve include path (returns null if not allowed/found depending on
-    // mode)
-    private Path resolveIncludePath(String includeExprText, Path includingFileDir) {
-        String raw = includeExprText;
-        // optionally strip quotes if you pass literal string; or eval expression
-        // earlier
-        Path p = Path.of(raw);
-        if (!p.isAbsolute()) {
-            if (includingFileDir != null)
-                p = includingFileDir.resolve(p);
-            else if (baseDir != null)
-                p = baseDir.resolve(p);
-        }
-        p = p.normalize();
-
-        // ensure jhp extension: optionally append .jhp if missing
-        if (!p.getFileName().toString().endsWith(".jhp")) {
-            p = p.resolveSibling(p.getFileName().toString() + ".jhp");
-        }
-
-        // security: ensure inside baseDir if baseDir is set
-        if (baseDir != null) {
-            Path baseNorm = baseDir.toAbsolutePath().normalize();
-            if (!p.toAbsolutePath().normalize().startsWith(baseNorm)) {
-                // disallow escaping baseDir
-                return null;
-            }
-        }
-        return p;
-    }
-
     public String render(TemplateNode root, Map<String, Object> context) {
-        Deque<Path> stack = includeStack.get();
-        stack.clear();
-
-        // use a stack of scopes (for loop variables)
-        Deque<Map<String, Object>> scopes = new ArrayDeque<>();
-        scopes.push(new HashMap<>(context != null ? context : Map.of()));
-        StringBuilder sb = new StringBuilder();
-        renderElements(root.elements, scopes, sb);
-        return sb.toString();
+        includeStack.get().clear();
+        return "";
     }
 
     private void renderElements(List<TemplateElementNode> elements, Deque<Map<String, Object>> scopes,
@@ -115,228 +55,241 @@ public class AstRenderer {
     }
 
     private void renderElement(TemplateElementNode el, Deque<Map<String, Object>> scopes, StringBuilder sb) {
-        if (el instanceof TextNode) {
-            sb.append(((TextNode) el).text);
+        switch (el.getClass().getSimpleName()) {
+            case "TextNode" -> sb.append(((TextNode) el).text);
+            case "EchoNode" -> renderEcho((EchoNode) el, scopes, sb, settings.escapeByDefault);
+            case "RawEchoNode" -> renderEcho((RawEchoNode) el, scopes, sb);
+            case "IncludeNode" -> renderInclude((IncludeNode) el, scopes, sb);
+            case "IfNode" -> renderIf((IfNode) el, scopes, sb);
+            case "ForNode" -> renderFor((ForNode) el, scopes, sb);
+            case "ForeachNode" -> renderForeach((ForeachNode) el, scopes, sb);
+            case "WhileNode" -> renderWhile((WhileNode) el, scopes, sb);
+            case "BreakNode" -> handleControlFlow("break");
+            case "ContinueNode" -> handleControlFlow("continue");
+            default -> issueResolver.handle(IssueType.UNKNOWN_ELEMENT, "Unknown element: " + el, sb);
+        }
+    }
+
+    private void renderEcho(EchoNode el, Deque<Map<String, Object>> scopes, StringBuilder sb, boolean escape) {
+        Object v = evalExpression(el.expr, scopes);
+        sb.append(escape ? escapeHtml(stringify(v)) : stringify(v));
+    }
+
+    private void renderEcho(RawEchoNode el, Deque<Map<String, Object>> scopes, StringBuilder sb) {
+        Object v = evalExpression(el.expr, scopes);
+        sb.append(stringify(v));
+    }
+
+    private void renderInclude(IncludeNode node, Deque<Map<String, Object>> scopes, StringBuilder sb) {
+        Deque<Path> stack = includeStack.get();
+        Path includingFileDir = stack.isEmpty() ? settings.base : stack.peek().getParent();
+
+        // Resolve the include path
+        Path resolved;
+        try {
+            resolved = pathResolver.resolve(node.path, includingFileDir);
+
+        } catch (PathNotInBaseDirectoryException e) {
+            issueResolver.handle(IssueType.INCLUDE_NOT_IN_BASE_DIR, e.getMessage(), sb);
+            return;
+        } catch (InvalidFileTypeException e) {
+            issueResolver.handle(IssueType.MISSING_INCLUDE, e.getMessage(), sb);
+            return;
+        } catch (Exception e) {
+            issueResolver.handle(IssueType.INCLUDE_ERROR,
+                    "Something went wrong trying to resolve the include path: " + node.path + ".", sb);
             return;
         }
-        if (el instanceof EchoNode) {
-            Object v = evalExpression(((EchoNode) el).expr, scopes);
-            sb.append(escapeHtml(stringify(v)));
+
+        // Check max depth
+        if (stack.size() >= settings.maxIncludeDepth) {
+            issueResolver.handle(IssueType.INCLUDE_MAX_DEPTH,
+                    "Max include depth reached: " + settings.maxIncludeDepth, sb);
             return;
         }
-        if (el instanceof RawEchoNode) {
-            Object v = evalExpression(((RawEchoNode) el).expr, scopes);
-            sb.append(stringify(v));
+
+        // Cycle detection
+        if (stack.contains(resolved)) {
+            issueResolver.handle(IssueType.INCLUDE_CYCLE, "Include cycle detected: " + resolved, sb);
             return;
         }
-        if (el instanceof IfNode) {
-            IfNode in = (IfNode) el;
-            if (toBoolean(evalExpression(in.condition, scopes))) {
-                renderElements(in.thenBranch, scopes, sb);
-                return;
-            }
-            for (ElseIfPart e : in.elseIfs) {
-                if (toBoolean(evalExpression(e.condition, scopes))) {
-                    renderElements(e.body, scopes, sb);
-                    return;
-                }
-            }
-            if (!in.elseBranch.isEmpty()) {
-                renderElements(in.elseBranch, scopes, sb);
-            }
-            return;
-        }
-        if (el instanceof ForNode) {
-            ForNode fn = (ForNode) el;
-            // create local scope for loop variable
-            Map<String, Object> local = new HashMap<>();
-            scopes.push(local);
+
+        try {
+            TemplateNode includedAst = parser.parse(resolved);
+
+            stack.push(resolved);
             try {
-                // init
-                if (fn.initIdentifier != null && fn.initExpr != null) {
-                    Object initVal = evalExpression(fn.initExpr, scopes);
-                    local.put(fn.initIdentifier, initVal);
-                }
-                // loop
-                while (true) {
-                    Object condVal = evalExpression(fn.condition, scopes);
-                    if (!toBoolean(condVal))
-                        break;
-                    try {
-                        renderElements(fn.body, scopes, sb);
-                    } catch (ControlFlow cf) {
-                        if ("break".equals(cf.tag))
-                            break;
-                        if ("continue".equals(cf.tag)) {
-                            // continue semantics -> perform update then continue
-                        }
-                    }
-                    // update
-                    if (fn.updateOp != null) {
-                        Object cur = lookup(fn.updateIdentifier, scopes);
-                        Number n = toNumber(cur);
-                        if (n == null) {
-                            local.put(fn.updateIdentifier, 1L);
-                        } else {
-                            if ("++".equals(fn.updateOp))
-                                local.put(fn.updateIdentifier, n.longValue() + 1);
-                            else
-                                local.put(fn.updateIdentifier, n.longValue() - 1);
-                        }
-                    } else if (fn.updateAssignExpr != null) {
-                        Object newv = evalExpression(fn.updateAssignExpr, scopes);
-                        setIdentifier(fn.updateIdentifier, newv, scopes);
-                    }
+                // create new local scope for included template
+                Map<String, Object> localScope = new HashMap<>();
+                scopes.push(localScope);
+                try {
+                    renderElements(includedAst.elements, scopes, sb);
+                } finally {
+                    scopes.pop();
                 }
             } finally {
-                scopes.pop();
+                stack.pop();
             }
+
+        } catch (Exception ex) {
+            issueResolver.handle(IssueType.INCLUDE_ERROR,
+                    "Something went wrong trying to parse the include: " + node.path + ".", sb);
+        }
+    }
+
+    private void renderIf(IfNode node, Deque<Map<String, Object>> scopes, StringBuilder sb) {
+        if (toBoolean(evalExpression(node.condition, scopes))) {
+            renderElements(node.thenBranch, scopes, sb);
             return;
         }
-        if (el instanceof ForeachNode) {
-            ForeachNode fe = (ForeachNode) el;
-            Object it = evalExpression(fe.iterable, scopes);
-            if (it == null)
+        for (ElseIfPart e : node.elseIfs) {
+            if (toBoolean(evalExpression(e.condition, scopes))) {
+                renderElements(e.body, scopes, sb);
                 return;
-            if (it instanceof Map) {
-                Map<?, ?> m = (Map<?, ?>) it;
-                for (Map.Entry<?, ?> e : m.entrySet()) {
-                    Map<String, Object> local = new HashMap<>();
-                    if (fe.keyIdentifier != null)
-                        local.put(fe.keyIdentifier, e.getKey());
-                    local.put(fe.valueIdentifier, e.getValue());
-                    scopes.push(local);
-                    try {
-                        renderElements(fe.body, scopes, sb);
-                    } catch (ControlFlow cf) {
-                        if ("break".equals(cf.tag)) {
-                            scopes.pop();
-                            break;
-                        }
-                        // continue -> just pop and continue
-                    } finally {
-                        if (!scopes.isEmpty() && scopes.peek() == local)
-                            scopes.pop();
-                    }
-                }
-            } else if (it instanceof Iterable) {
-                Iterable<?> itr = (Iterable<?>) it;
-                for (Object item : itr) {
-                    Map<String, Object> local = new HashMap<>();
-                    local.put(fe.valueIdentifier, item);
-                    if (fe.keyIdentifier != null)
-                        local.put(fe.keyIdentifier, null);
-                    scopes.push(local);
-                    try {
-                        renderElements(fe.body, scopes, sb);
-                    } catch (ControlFlow cf) {
-                        if ("break".equals(cf.tag)) {
-                            scopes.pop();
-                            break;
-                        }
-                    } finally {
-                        if (!scopes.isEmpty() && scopes.peek() == local)
-                            scopes.pop();
-                    }
-                }
-            } else if (it.getClass().isArray()) {
-                int len = java.lang.reflect.Array.getLength(it);
-                for (int i = 0; i < len; i++) {
-                    Object item = java.lang.reflect.Array.get(it, i);
-                    Map<String, Object> local = new HashMap<>();
-                    if (fe.keyIdentifier != null)
-                        local.put(fe.keyIdentifier, i);
-                    local.put(fe.valueIdentifier, item);
-                    scopes.push(local);
-                    try {
-                        renderElements(fe.body, scopes, sb);
-                    } catch (ControlFlow cf) {
-                        if ("break".equals(cf.tag)) {
-                            scopes.pop();
-                            break;
-                        }
-                    } finally {
-                        if (!scopes.isEmpty() && scopes.peek() == local)
-                            scopes.pop();
-                    }
-                }
-            } else {
-                // not iterable: nothing
             }
-            return;
         }
-        if (el instanceof WhileNode) {
-            WhileNode wn = (WhileNode) el;
-            while (toBoolean(evalExpression(wn.condition, scopes))) {
+        if (!node.elseBranch.isEmpty()) {
+            renderElements(node.elseBranch, scopes, sb);
+        }
+        return;
+    }
+
+    private void renderFor(ForNode node, Deque<Map<String, Object>> scopes, StringBuilder sb) {
+        Map<String, Object> local = new HashMap<>();
+        scopes.push(local);
+        try {
+            // init
+            if (node.initIdentifier != null && node.initExpr != null) {
+                Object initVal = evalExpression(node.initExpr, scopes);
+                local.put(node.initIdentifier, initVal);
+            }
+            // loop
+            while (true) {
+                Object condVal = evalExpression(node.condition, scopes);
+                if (!toBoolean(condVal))
+                    break;
                 try {
-                    renderElements(wn.body, scopes, sb);
+                    renderElements(node.body, scopes, sb);
                 } catch (ControlFlow cf) {
                     if ("break".equals(cf.tag))
                         break;
-                    if ("continue".equals(cf.tag))
-                        continue;
+                    if ("continue".equals(cf.tag)) {
+                        // continue semantics -> perform update then continue
+                    }
+                }
+                // update
+                if (node.updateOp != null) {
+                    Object cur = lookup(node.updateIdentifier, scopes);
+                    Number n = toNumber(cur);
+                    if (n == null) {
+                        local.put(node.updateIdentifier, 1L);
+                    } else {
+                        if ("++".equals(node.updateOp))
+                            local.put(node.updateIdentifier, n.longValue() + 1);
+                        else
+                            local.put(node.updateIdentifier, n.longValue() - 1);
+                    }
+                } else if (node.updateAssignExpr != null) {
+                    Object newv = evalExpression(node.updateAssignExpr, scopes);
+                    setIdentifier(node.updateIdentifier, newv, scopes);
                 }
             }
+        } finally {
+            scopes.pop();
+        }
+        return;
+    }
+
+    private void renderForeach(ForeachNode node, Deque<Map<String, Object>> scopes, StringBuilder sb) {
+        Object it = evalExpression(node.iterable, scopes);
+        if (it == null)
             return;
-        }
-        if (el instanceof BreakNode) {
-            throw new ControlFlow("break");
-        }
-        if (el instanceof ContinueNode) {
-            throw new ControlFlow("continue");
-        }
-        if (el instanceof IncludeNode) {
-            IncludeNode inc = (IncludeNode) el;
-            Deque<Path> stack = includeStack.get();
-            Path includingFileDir = stack.isEmpty() ? baseDir : stack.peek().getParent();
-            Path resolved = resolveIncludePath(inc.path, includingFileDir);
-            if (resolved == null) {
-                sb.append("<!-- include disallowed or not found: ").append(inc.path).append(" -->");
-                return;
-            }
-
-            // normalize
-            resolved = resolved.toAbsolutePath().normalize();
-
-            // cycle detection
-            if (stack.contains(resolved)) {
-                StringBuilder cyc = new StringBuilder();
-                for (Path p : stack) {
-                    cyc.append(p.toString()).append(" -> ");
-                }
-                cyc.append(resolved.toString());
-                sb.append("<!-- include cycle detected: ").append(cyc).append(" -->");
-                return;
-            }
-
-            try {
-                TemplateNode includedAst = parseAndBuild(resolved);
-                stack.push(resolved);
+        if (it instanceof Map) {
+            Map<?, ?> m = (Map<?, ?>) it;
+            for (Map.Entry<?, ?> e : m.entrySet()) {
+                Map<String, Object> local = new HashMap<>();
+                if (node.keyIdentifier != null)
+                    local.put(node.keyIdentifier, e.getKey());
+                local.put(node.valueIdentifier, e.getValue());
+                scopes.push(local);
                 try {
-                    // render included template in a new local scope
-                    Map<String, Object> local = new HashMap<>();
-                    scopes.push(local);
-                    try {
-                        renderElements(includedAst.elements, scopes, sb);
-                    } finally {
-                        // pop scope
-                        if (!scopes.isEmpty() && scopes.peek() == local)
-                            scopes.pop();
+                    renderElements(node.body, scopes, sb);
+                } catch (ControlFlow cf) {
+                    if ("break".equals(cf.tag)) {
+                        scopes.pop();
+                        break;
+                    }
+                    // continue -> just pop and continue
+                } finally {
+                    if (!scopes.isEmpty() && scopes.peek() == local)
+                        scopes.pop();
+                }
+            }
+        } else if (it instanceof Iterable) {
+            Iterable<?> itr = (Iterable<?>) it;
+            for (Object item : itr) {
+                Map<String, Object> local = new HashMap<>();
+                local.put(node.valueIdentifier, item);
+                if (node.keyIdentifier != null)
+                    local.put(node.keyIdentifier, null);
+                scopes.push(local);
+                try {
+                    renderElements(node.body, scopes, sb);
+                } catch (ControlFlow cf) {
+                    if ("break".equals(cf.tag)) {
+                        scopes.pop();
+                        break;
                     }
                 } finally {
-                    // pop include stack entry
-                    Path popped = stack.pop();
-                    assert popped.equals(resolved);
+                    if (!scopes.isEmpty() && scopes.peek() == local)
+                        scopes.pop();
                 }
-            } catch (Exception ex) {
-                sb.append("<!-- include error: ").append(ex.getClass().getSimpleName())
-                        .append(": ").append(ex.getMessage()).append(" -->");
             }
-            return;
+        } else if (it.getClass().isArray()) {
+            int len = java.lang.reflect.Array.getLength(it);
+            for (int i = 0; i < len; i++) {
+                Object item = java.lang.reflect.Array.get(it, i);
+                Map<String, Object> local = new HashMap<>();
+                if (node.keyIdentifier != null)
+                    local.put(node.keyIdentifier, i);
+                local.put(node.valueIdentifier, item);
+                scopes.push(local);
+                try {
+                    renderElements(node.body, scopes, sb);
+                } catch (ControlFlow cf) {
+                    if ("break".equals(cf.tag)) {
+                        scopes.pop();
+                        break;
+                    }
+                } finally {
+                    if (!scopes.isEmpty() && scopes.peek() == local)
+                        scopes.pop();
+                }
+            }
+        } else {
+            // not iterable: nothing
         }
-
-        // Unknown element: ignore
+        return;
     }
+
+    private void renderWhile(WhileNode node, Deque<Map<String, Object>> scopes, StringBuilder sb) {
+        while (toBoolean(evalExpression(node.condition, scopes))) {
+            try {
+                renderElements(node.body, scopes, sb);
+            } catch (ControlFlow cf) {
+                if ("break".equals(cf.tag))
+                    break;
+                if ("continue".equals(cf.tag))
+                    continue;
+            }
+        }
+        return;
+    }
+
+    private void handleControlFlow(String tag) {
+        throw new ControlFlow(tag);
+    }
+
 
     /* ---------------- Expression evaluation ---------------- */
 

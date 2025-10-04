@@ -9,5 +9,5 @@ public interface RuntimeIssueResolver {
      * @param message human-readable message
      * @return mode of rendering (PARTIAL, NONE) or throw exception
      */
-    IssueRenderMode handleIssue(IssueType type, String message);
+    IssueRenderMode handle(IssueType type, String message, StringBuilder sb);
 }
