@@ -43,8 +43,16 @@ public class AstRenderer {
     }
 
     public String render(TemplateNode root, Map<String, Object> context) {
-        includeStack.get().clear();
-        return "";
+        Deque<Path> stack = includeStack.get();
+        stack.clear();
+
+        // stack of scopes for variables (loops, includes)
+        Deque<Map<String, Object>> scopes = new ArrayDeque<>();
+        scopes.push(new HashMap<>(context != null ? context : Map.of()));
+
+        StringBuilder sb = new StringBuilder();
+        renderElements(root.elements, scopes, sb);
+        return sb.toString();
     }
 
     private void renderElements(List<TemplateElementNode> elements, Deque<Map<String, Object>> scopes,
@@ -290,7 +298,6 @@ public class AstRenderer {
         throw new ControlFlow(tag);
     }
 
-
     /* ---------------- Expression evaluation ---------------- */
 
     private Object evalExpression(ExpressionNode expr, Deque<Map<String, Object>> scopes) {
@@ -320,7 +327,7 @@ public class AstRenderer {
             List<Object> args = new ArrayList<>();
             for (ExpressionNode e : f.args)
                 args.add(evalExpression(e, scopes));
-            return callFunction(callee, args);
+            return callFunction(callee, args, scopes);
         }
         if (expr instanceof UnaryOpNode) {
             UnaryOpNode u = (UnaryOpNode) expr;
@@ -419,24 +426,12 @@ public class AstRenderer {
         return null;
     }
 
-    private Object callFunction(Object callee, List<Object> args) {
-        // Simple built-in functions impl (temporary)
-        if (callee instanceof String) {
-            String name = (String) callee;
-            if ("len".equals(name) && args.size() == 1) {
-                Object a = args.get(0);
-                if (a instanceof String)
-                    return ((String) a).length();
-                if (a instanceof Collection)
-                    return ((Collection<?>) a).size();
-                if (a instanceof Map)
-                    return ((Map<?, ?>) a).size();
-                if (a != null && a.getClass().isArray())
-                    return java.lang.reflect.Array.getLength(a);
-                return 0;
-            }
+    private Object callFunction(Object callee, List<Object> args, Deque<Map<String, Object>> scopes) {
+        if (callee instanceof String name) {
+            return functions.callFunction(name, args, scopes);
         }
-        // fallback: return null
+        // unknown callee type
+        issueResolver.handle(IssueType.FUNCTION_CALL_ERROR, "Invalid function call: " + callee, new StringBuilder());
         return null;
     }
 
