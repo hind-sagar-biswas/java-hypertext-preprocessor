@@ -1,21 +1,20 @@
 package com.hindbiswas.jhp;
 
-import org.antlr.v4.runtime.*;
-import org.antlr.v4.runtime.tree.*;
-
-import com.hindbiswas.jhp.ast.AstBuilder;
-import com.hindbiswas.jhp.ast.AstPrettyPrinter;
-import com.hindbiswas.jhp.ast.AstRendererOld;
-import com.hindbiswas.jhp.ast.TemplateNode;
 import com.hindbiswas.jhp.engine.FunctionLibrary;
 import com.hindbiswas.jhp.engine.JhpEngine;
 import com.hindbiswas.jhp.engine.Settings;
 
-import java.nio.file.Files;
-import java.nio.file.Path;
-import java.nio.file.Paths;
-import java.util.HashMap;
-import java.util.Map;
+class User {
+    public String name;
+    public int age;
+    public String gender;
+
+    User(String name, int age, String gender) {
+        this.name = name;
+        this.age = age;
+        this.gender = gender;
+    }
+}
 
 public class App {
     public static void main(String[] args) throws Exception {
@@ -25,58 +24,11 @@ public class App {
         FunctionLibrary lib = new FunctionLibrary();
         JhpEngine engine = new JhpEngine(settings, lib);
 
-        Map<String, Object> ctx = new HashMap<>();
-        Map<String, Object> user = new HashMap<>();
-        user.put("name", "Alice");
-        user.put("age", 150);
-        user.put("gender", "f");
-        ctx.put("user", user);
-        ctx.put("title", "Test JHP");
+        Context ctx = new Context();
+        ctx.add("user", new User("Alice", 150, "f"));
+        ctx.add("title", "Test JHP");
 
         String out = engine.render(file, ctx);
         System.out.println(out);
-    }
-
-    public static void oldReneder(String file) throws Exception {
-        ParseTree tree = generateTree(file);
-        AstBuilder builder = new AstBuilder();
-        TemplateNode ast = (TemplateNode) builder.visit(tree);
-        AstPrettyPrinter.print(ast);
-
-        // Context
-        Map<String, Object> ctx = new HashMap<>();
-        Map<String, Object> user = new HashMap<>();
-        user.put("name", "Alice");
-        user.put("age", 150);
-        user.put("gender", "F");
-        ctx.put("user", user);
-        ctx.put("title", "Test JHP");
-
-        // render
-        AstRendererOld renderer = new AstRendererOld(Path.of("examples")); // optional base dir
-        String out = renderer.render(ast, ctx);
-        System.out.println(out);
-    }
-
-    public static ParseTree generateTree(String file) throws Exception {
-        // Read template file
-        String text = Files.readString(Paths.get(file));
-
-        // Create CharStream
-        CharStream cs = CharStreams.fromString(text);
-
-        // Lexer & token stream
-        JhpTemplateLexer lexer = new JhpTemplateLexer(cs);
-        CommonTokenStream tokens = new CommonTokenStream(lexer);
-
-        // Parser
-        JhpTemplateParser parser = new JhpTemplateParser(tokens);
-        parser.removeErrorListeners();
-        parser.addErrorListener(new DiagnosticErrorListener());
-
-        // Parse template
-        ParseTree tree = parser.template();
-
-        return tree;
     }
 }

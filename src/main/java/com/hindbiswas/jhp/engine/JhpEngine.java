@@ -4,6 +4,7 @@ import com.hindbiswas.jhp.ast.AstBuilder;
 import com.hindbiswas.jhp.ast.AstRenderer;
 import com.hindbiswas.jhp.ast.TemplateNode;
 import com.hindbiswas.jhp.errors.PathNotInBaseDirectoryException;
+import com.hindbiswas.jhp.Context;
 import com.hindbiswas.jhp.JhpTemplateLexer;
 import com.hindbiswas.jhp.JhpTemplateParser;
 
@@ -219,13 +220,13 @@ public class JhpEngine {
         this.functionLibrary = functionLibrary;
     }
 
-    public String render(Path templatePath, Map<String, Object> context) throws Exception {
+    public String render(Path templatePath, Context context) throws Exception {
         TemplateNode ast = parser.parse(templatePath);
         AstRenderer renderer = new AstRenderer(settings, functionLibrary, issueResolver, includePathResolver, parser);
-        return renderer.render(ast, context);
+        return renderer.render(ast, context.getContext());
     }
 
-    public String render(String pathTxt, Map<String, Object> context) throws Exception {
+    public String render(String pathTxt, Context context) throws Exception {
         Path path = includePathResolver.resolve(pathTxt, null);
         return render(path, context);
     }

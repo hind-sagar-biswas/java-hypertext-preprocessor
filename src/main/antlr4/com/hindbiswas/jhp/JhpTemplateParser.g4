@@ -17,12 +17,12 @@ templateElement
     ;
 
 // Echo statements
-echoStatement
-    : ECHO_START expression ECHO_END
-    ;
-
 rawEchoStatement
     : RAW_ECHO_START expression RAW_ECHO_END
+    ;
+    
+echoStatement
+    : ECHO_START expression ECHO_END
     ;
 
 // Control statements

@@ -15,7 +15,7 @@ import org.antlr.v4.runtime.tree.ParseTree;
 import com.hindbiswas.jhp.JhpTemplateLexer;
 import com.hindbiswas.jhp.JhpTemplateParser;
 
-public class AstRendererOld {
+class AstRendererOld {
     private final ThreadLocal<Deque<Path>> includeStack = ThreadLocal.withInitial(ArrayDeque::new);
     private final Map<Path, TemplateNode> astCache = new HashMap<>();
     private final Path baseDir; // used for includes, nullable

@@ -455,16 +455,6 @@ public class AstRenderer {
         return null;
     }
 
-    private Object callFunction(Object callee, List<Object> args, Deque<Map<String, Object>> scopes) {
-        if (callee instanceof String name) {
-            return functions.callFunction(name, args, scopes);
-        }
-        // unknown callee type
-        StringBuilder sb = new StringBuilder();
-        issueResolver.handle(IssueType.FUNCTION_CALL_ERROR, "Invalid function call: " + callee, sb, includeStack);
-        return sb.toString();
-    }
-
     private String stringify(Object o) {
         if (o == null)
             return "";
